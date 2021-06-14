@@ -11,8 +11,24 @@ const client = new Client({
     defaultSendOptions: { timeout: 20000, transport: 'tcp' },
 });
 
-const logEvent = function logEvent(eventName, device, state, alias = "aliasDummy", status = "statusDummy") {
-    // console.log('stateString', stateString)
+const run = async () => {
+    const device = await client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS });
+    console.log('power strip alias: ', device.alias);
+
+    await Promise.all(
+        device.children.forEach(async (child) => {
+            const childPlug = await client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS, childId: child.id });
+
+            childPlug.on('emeter-realtime-update', (emeterRealtime) => {
+                logEvent('emeter-realtime-update', childPlug, emeterRealtime, child.alias);
+            });
+
+            childPlug.startPolling(POLL_INTERVAL);
+        })
+    ).catch(e => console.log('Issue getting energy from children of power strip, ', e));
+};
+
+const logEvent = function logEvent(eventName, device, state, alias) {
     const stateString = state != null ? util.inspect(state) : '';
 
     const watts = getPower(stateString)
@@ -27,7 +43,6 @@ const logEvent = function logEvent(eventName, device, state, alias = "aliasDummy
                 DeviceHost: ${device.host}:
                 DeviceChildId: ${device.childId} 
                 ${watts}
-                status: ${status}
             `);
 
         const power = watts.substr(watts.indexOf(':') + 2, watts.length - 1);
@@ -65,54 +80,7 @@ const getPower = (stateString) => {
     return everythingFromPowerToEnd.substr(0, endOfPowerSection);
 }
 
-const monitorEvents = function monitorEvents(device, alias) {
-    // Device (Common) Events
-    device.on('emeter-realtime-update', (emeterRealtime) => {
-        logEvent('emeter-realtime-update', device, emeterRealtime, alias);
-    });
-
-    // Plug Events
-    device.on('power-on', () => {
-        logEvent('power-on', device);
-    });
-    device.on('power-off', () => {
-        logEvent('power-off', device);
-    });
-    device.on('power-update', (powerOn) => {
-        logEvent('power-update', device, powerOn, alias, 'power-update');
-    });
-    device.on('in-use', () => {
-        logEvent('in-use', device);
-    });
-    device.on('not-in-use', () => {
-        logEvent('not-in-use', device);
-    });
-    device.on('in-use-update', (inUse) => {
-        logEvent('in-use-update', device, inUse, alias, 'in-use-update');
-    });
-
-    device.startPolling(POLL_INTERVAL);
-};
-
-const log = async () => {
-    const device = await client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS });
-    console.log('power strip alias: ', device.alias);
-
-
-    await Promise.all(
-    device.children.forEach(async (child) => {
-        // console.log('child:', child)
-        const childPlug = await client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS, childId: child.id });
-        // console.log('childPlug', childPlug)
-        monitorEvents(childPlug, child.alias);
-    })
-    ).catch(e => console.log('Issue getting energy from children of power strip, ',e));
-
-    // monitorEvents(device);
-};
-
-
-function writeLog(filePath, log) {
+const writeLog = (filePath, log) => {
     try {
         fs.appendFileSync(filePath, JSON.stringify(log) + ",");
     }
@@ -122,5 +90,5 @@ function writeLog(filePath, log) {
 }
 
 
-setInterval(log, POLL_INTERVAL);
-// log();
+// setInterval(log, POLL_INTERVAL);
+run();
