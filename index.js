@@ -1,10 +1,11 @@
 require('dotenv').config();
 const util = require('util');
-const fs = require('fs');
-const { Client } = require('tplink-smarthome-api')
+const { Client } = require('tplink-smarthome-api');
+const deviceWrite = require('./src/deviceWrite');
+const writeLog = require('./src/writeLog');
+const childWrite = require('./src/childWrite');
 
 const FIVE_MINUTES = 300000;
-
 const POLL_INTERVAL = FIVE_MINUTES;
 
 const client = new Client({
@@ -12,53 +13,59 @@ const client = new Client({
 });
 
 const run = async () => {
-    const device = await client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS });
-    console.log('power strip alias: ', device.alias);
 
-    await Promise.all(
-        device.children.forEach(async (child) => {
-            const childPlug = await client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS, childId: child.id });
+    // Power Strip combined
+    client.getDevice({ host: process.env.BAGGINS_POWER })
+        .then(device => {
+            device.on('emeter-realtime-update', (emeterRealtime) => {
+                const electricityData = {
+                    id: device.id,
+                    time: Date.now(),
+                    date: new Date(),
+                    name: `${device.alias} - 2 Mining Rigs`,
+                    model: device.model,
+                    host: process.env.BAGGINS_POWER,
+                    watts: emeterRealtime.power
+                };
 
-            childPlug.on('emeter-realtime-update', (emeterRealtime) => {
-                logEvent('emeter-realtime-update', childPlug, emeterRealtime, child.alias);
+                deviceWrite(electricityData);
             });
 
-            childPlug.startPolling(POLL_INTERVAL);
+            device.startPolling(POLL_INTERVAL);
         })
-    ).catch(e => console.log('Issue getting energy from children of power strip, ', e));
-};
+        .catch(e => console.log('Issue getting plug, ', e));
 
-const logEvent = function logEvent(eventName, device, state, alias) {
-    const stateString = state != null ? util.inspect(state) : '';
+    // Power Strip
+    client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS })
+        .then(device => {
+            device.children?.forEach(async (child) => {
+                const childPlug = await client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS, childId: child.id });
 
-    const watts = getPower(stateString)
+                childPlug.on('emeter-realtime-update', (emeterRealtime) => {
+                    const stateString = emeterRealtime != null ? util.inspect(emeterRealtime) : undefined;
+                    const watts = stateString && getChildPower(stateString);
 
-    if (watts !== '' && alias !== "aliasDummy") {
-        console.log(`
-                time: ${Date.now()}
-                date: ${new Date()}
-                Name: ${alias}
-                eventName: ${eventName} 
-                DeviceModel: ${device.model} 
-                DeviceHost: ${device.host}:
-                DeviceChildId: ${device.childId} 
-                ${watts}
-            `);
+                    if (watts === undefined) return '';
+                    const power = watts.substr(watts.indexOf(':') + 2, watts.length - 1);
 
-        const power = watts.substr(watts.indexOf(':') + 2, watts.length - 1);
+                    const electricityData = {
+                        time: Date.now(),
+                        date: new Date(),
+                        name: childPlug.alias,
+                        DeviceModel: childPlug.model,
+                        DeviceHost: childPlug.host,
+                        DeviceChildId: childPlug.childId,
+                        watts: power,
+                    };
 
-        writeLog(`${process.env.FILE_PATH}${device.childId}.json`, {
-            time: Date.now(),
-            date: new Date(),
-            Name: alias,
-            eventName: eventName,
-            DeviceModel: device.model,
-            DeviceHost: device.host,
-            DeviceChildId: device.childId,
-            watts: power
+                    console.log('looking at you', electricityData)
+                    childWrite(electricityData);
+                });
+
+                childPlug.startPolling(POLL_INTERVAL);
+            })
         })
-    }
-};
+}
 
 /**
  * 
@@ -74,21 +81,10 @@ const logEvent = function logEvent(eventName, device, state, alias) {
                     voltage: 111.399 }
  * @returns String: power: 183.194
  */
-const getPower = (stateString) => {
+const getChildPower = (stateString) => {
     const everythingFromPowerToEnd = stateString.substr(stateString.indexOf('power:'), stateString.length - 1);
     const endOfPowerSection = everythingFromPowerToEnd.indexOf(',');
     return everythingFromPowerToEnd.substr(0, endOfPowerSection);
 }
 
-const writeLog = (filePath, log) => {
-    try {
-        fs.appendFileSync(filePath, JSON.stringify(log) + ",");
-    }
-    catch (err) {
-        console.warn('Error writing log for ' + device.alias + ' [' + device.deviceId + ']', err);
-    }
-}
-
-
-// setInterval(log, POLL_INTERVAL);
 run();
