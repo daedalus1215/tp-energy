@@ -54,11 +54,10 @@ const run = async () => {
                         name: childPlug.alias,
                         DeviceModel: childPlug.model,
                         DeviceHost: childPlug.host,
-                        DeviceChildId: childPlug.childId,
+                        idx: childPlug.childId,
                         watts: power,
                     };
 
-                    console.log('looking at you', electricityData)
                     childWrite(electricityData);
                 });
 
