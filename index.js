@@ -14,6 +14,29 @@ const client = new Client({
 
 const run = async () => {
 
+    // Laptop
+    client.getDevice({ host: process.env.LAPTOP_POWER })
+        .then(device => {
+            console.log('laptop', device)
+            device.on('emeter-realtime-update', (emeterRealtime) => {
+                const electricityData = {
+                    id: device.deviceId,
+                    time: Date.now(),
+                    date: new Date(),
+                    name: `${device.alias}`,
+                    model: device.model,
+                    host: process.env.LAPTOP_POWER,
+                    watts: emeterRealtime.power
+                };
+
+                deviceWrite(electricityData);
+            });
+
+            device.startPolling(POLL_INTERVAL);
+        })
+        .catch(e => console.log('Issue getting plug, ', e));
+
+
     // Power Strip combined
     client.getDevice({ host: process.env.BAGGINS_POWER })
         .then(device => {
@@ -54,7 +77,7 @@ const run = async () => {
                         name: childPlug.alias,
                         DeviceModel: childPlug.model,
                         DeviceHost: childPlug.host,
-                        idx: childPlug.childId,
+                        id: childPlug.childId,
                         watts: power,
                     };
 
