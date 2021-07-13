@@ -29,5 +29,14 @@ module.exports = (data) => {
             watts
         });
 
-    writeLog(`${process.env.FILE_PATH}${id} - ${name}.json`);
+    writeLog(`${process.env.FILE_PATH}${id} - ${name}.json`, {
+        id,
+        time,
+        date,
+        name,
+        name,
+        model,
+        host,
+        watts
+    });
 }
