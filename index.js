@@ -23,7 +23,7 @@ const run = async () => {
                     id: device.deviceId,
                     time: Date.now(),
                     date: new Date(),
-                    name: `${device.alias}`,
+                    name: `${device.alias} - Laptop`,
                     model: device.model,
                     host: process.env.LAPTOP_POWER,
                     watts: emeterRealtime.power
@@ -34,7 +34,21 @@ const run = async () => {
 
             device.startPolling(POLL_INTERVAL);
         })
-        .catch(e => console.log('Issue getting plug, ', e));
+        .catch(e => {
+            console.log('Issue getting plug for Laptop, ', e)
+            const electricityData = {
+                id: device?.id,
+                time: Date.now(),
+                date: new Date(),
+                name: `${device?.alias} - laptop`,
+                model: device?.model,
+                host: process.env.LAPTOP_POWER,
+                watts: false,
+                description: 'issue with connecting to laptop'
+            };
+
+            deviceWrite(electricityData);
+        });
 
 
     // Power Strip combined
@@ -56,7 +70,21 @@ const run = async () => {
 
             device.startPolling(POLL_INTERVAL);
         })
-        .catch(e => console.log('Issue getting plug, ', e));
+        .catch(e => {
+            console.log('Issue getting plug for Baggins, ', e);
+            const electricityData = {
+                id: device?.id,
+                time: Date.now(),
+                date: new Date(),
+                name: `${device?.alias} - 2 Mining Rigs`,
+                model: device?.model,
+                host: process.env.BAGGINS_POWER,
+                watts: false,
+                description: 'issue with connecting to Baggins'
+            };
+
+            deviceWrite(electricityData);
+        });
 
     // Power Strip
     client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS })
@@ -87,6 +115,22 @@ const run = async () => {
                 childPlug.startPolling(POLL_INTERVAL);
             })
         })
+        .catch(e => {
+            console.log('Issue getting plug for Power Strip, ', e)
+            const electricityData = {
+                id: device?.id,
+                time: Date.now(),
+                date: new Date(),
+                name: `${device?.alias} - power strip`,
+                model: device?.model,
+                host: process.env.LAPTOP_POWER,
+                watts: false,
+                description: 'issue with connecting to a child or power strip itself.'
+            };
+
+            deviceWrite(electricityData);
+        });
+
 }
 
 /**
