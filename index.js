@@ -7,6 +7,7 @@ const childWrite = require('./src/childWrite');
 
 const FIVE_MINUTES = 300000;
 const POLL_INTERVAL = FIVE_MINUTES;
+const consoleLogging = true;
 
 const client = new Client({
     defaultSendOptions: { timeout: 20000, transport: 'tcp' },
@@ -17,7 +18,6 @@ const run = async () => {
     // Laptop
     client.getDevice({ host: process.env.LAPTOP_POWER })
         .then(device => {
-            console.log('laptop', device)
             device.on('emeter-realtime-update', (emeterRealtime) => {
                 const electricityData = {
                     id: device.deviceId,
@@ -29,13 +29,12 @@ const run = async () => {
                     watts: emeterRealtime.power
                 };
 
-                deviceWrite(electricityData);
+                deviceWrite(electricityData, consoleLogging);
             });
 
             device.startPolling(POLL_INTERVAL);
         })
         .catch(e => {
-            console.log('Issue getting plug for Laptop, ', e)
             const electricityData = {
                 id: device?.id,
                 time: Date.now(),
@@ -47,11 +46,11 @@ const run = async () => {
                 description: 'issue with connecting to laptop'
             };
 
-            deviceWrite(electricityData);
+            deviceWrite(electricityData, consoleLogging);
         });
 
 
-    // Power Strip combined
+    // Baggins
     client.getDevice({ host: process.env.BAGGINS_POWER })
         .then(device => {
             device.on('emeter-realtime-update', (emeterRealtime) => {
@@ -65,13 +64,12 @@ const run = async () => {
                     watts: emeterRealtime.power
                 };
 
-                deviceWrite(electricityData);
+                deviceWrite(electricityData, false);
             });
 
             device.startPolling(POLL_INTERVAL);
         })
         .catch(e => {
-            console.log('Issue getting plug for Baggins, ', e);
             const electricityData = {
                 id: device?.id,
                 time: Date.now(),
@@ -83,12 +81,14 @@ const run = async () => {
                 description: 'issue with connecting to Baggins'
             };
 
-            deviceWrite(electricityData);
+            deviceWrite(electricityData, consoleLogging);
         });
 
     // Power Strip
     client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS })
         .then(device => {
+            let summedChildrenPower = 0;
+
             device.children?.forEach(async (child) => {
                 const childPlug = await client.getDevice({ host: process.env.POWER_STRIP_IP_ADDRESS, childId: child.id });
 
@@ -98,6 +98,8 @@ const run = async () => {
 
                     if (watts === undefined) return '';
                     const power = watts.substr(watts.indexOf(':') + 2, watts.length - 1);
+
+                    summedChildrenPower += parseInt(power);
 
                     const electricityData = {
                         time: Date.now(),
@@ -109,14 +111,28 @@ const run = async () => {
                         watts: power,
                     };
 
-                    childWrite(electricityData);
+                    childWrite(electricityData, consoleLogging);
                 });
 
                 childPlug.startPolling(POLL_INTERVAL);
-            })
+            });
+
+            //@TODO: To avoid a race condition (for the moment).
+            setTimeout(() => {
+                deviceWrite({
+                    id: device?.id,
+                    time: Date.now(),
+                    date: new Date(),
+                    name: `${device?.alias} - power strip`,
+                    model: device?.model,
+                    host: process.env.LAPTOP_POWER,
+                    watts: summedChildrenPower,
+                    description: 'Parent Strip'
+                }, consoleLogging);
+                summedChildrenPower = 0;
+            }, 10000);
         })
         .catch(e => {
-            console.log('Issue getting plug for Power Strip, ', e)
             const electricityData = {
                 id: device?.id,
                 time: Date.now(),
@@ -128,7 +144,7 @@ const run = async () => {
                 description: 'issue with connecting to a child or power strip itself.'
             };
 
-            deviceWrite(electricityData);
+            deviceWrite(electricityData, false);
         });
 
 }
