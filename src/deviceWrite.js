@@ -17,6 +17,6 @@ const writeLog = require("./writeLog");
  */
 module.exports = (data, consoleLogging = true) => {
     const { name, id } = data;
-    consoleLogging && console.log('new - deviceWrite', data);
+    consoleLogging && console.log('Plug - deviceWrite', data);
     writeLog(`${process.env.FILE_PATH}${id} - ${name}.json`, data);
 }

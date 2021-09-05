@@ -13,6 +13,6 @@ const writeLog = require("./writeLog");
  * @param {boolean} consoleLogging 
  */
 module.exports = (electricityData, consoleLogging = true) => {
-    consoleLogging && console.log('new - deviceWrite', electricityData);
+    consoleLogging && console.log('child - ', electricityData);
     writeLog(`${process.env.FILE_PATH}${electricityData.id} - ${electricityData.name}.json`, electricityData);
 };
