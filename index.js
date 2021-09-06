@@ -1,13 +1,15 @@
 require('dotenv').config();
-const util = require('util');
 const { Client } = require('tplink-smarthome-api');
-const deviceWrite = require('./src/deviceWrite');
-const writeLog = require('./src/writeLog');
-const childWrite = require('./src/childWrite');
+const util = require('util');
+const deviceWrite = require('./src/writers/deviceWrite');
+const writeLog = require('./src/writers/writeLog');
+const childWrite = require('./src/writers/childWrite');
+const { mailOptions, transporter } = require('./utils/email');
 
 const FIVE_MINUTES = 300000;
 const POLL_INTERVAL = FIVE_MINUTES;
-const consoleLogging = true;
+const isConsoleLogging = true;
+const isEmailing = false;
 
 const client = new Client({
     defaultSendOptions: { timeout: 20000, transport: 'tcp' },
@@ -29,7 +31,7 @@ const run = async () => {
                     watts: emeterRealtime.power
                 };
 
-                deviceWrite(electricityData, consoleLogging);
+                deviceWrite(electricityData, isConsoleLogging);
             });
 
             device.startPolling(POLL_INTERVAL);
@@ -46,7 +48,7 @@ const run = async () => {
                 description: 'issue with connecting to laptop'
             };
 
-            deviceWrite(electricityData, consoleLogging);
+            deviceWrite(electricityData, isConsoleLogging);
         });
 
 
@@ -81,7 +83,7 @@ const run = async () => {
                 description: 'issue with connecting to Baggins'
             };
 
-            deviceWrite(electricityData, consoleLogging);
+            deviceWrite(electricityData, isConsoleLogging);
         });
 
     // Power Strip
@@ -111,7 +113,7 @@ const run = async () => {
                         watts: power,
                     };
 
-                    childWrite(electricityData, consoleLogging);
+                    childWrite(electricityData, isConsoleLogging);
                 });
 
                 childPlug.startPolling(POLL_INTERVAL);
@@ -128,8 +130,10 @@ const run = async () => {
                     host: process.env.LAPTOP_POWER,
                     watts: summedChildrenPower,
                     description: 'Parent Strip'
-                }, consoleLogging);
+                }, isConsoleLogging);
                 summedChildrenPower = 0;
+
+                isEmailing && transporter.sendMail(mailOptions)
             }, 10000);
         })
         .catch(e => {
