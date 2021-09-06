@@ -21,6 +21,7 @@
     "fs": "^0.0.1-security",
     "log4js": "^6.3.0",
     "mongoose": "^5.12.7",
+    "nodemailer": "^6.6.3",
     "nodemon": "^2.0.2",
     "tplink-smarthome-api": "^3.3.0",
     "ts-node": "^9.1.1",
