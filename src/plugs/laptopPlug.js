@@ -7,7 +7,6 @@ const laptopPlug = (client, host) => {
         .then(device => {
             
             device.on('emeter-realtime-update', (emeterRealtime) => {
-                console.log('no?')
                 deviceWrite({
                     id: device.deviceId,
                     time: Date.now(),
@@ -20,7 +19,6 @@ const laptopPlug = (client, host) => {
             });
             
             device.startPolling(POLL_INTERVAL);
-            console.log('hi', host)
         })
         .catch(e => {
             deviceWrite({
