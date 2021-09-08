@@ -1,36 +1,44 @@
-const { POLL_INTERVAL, IS_CONSOLE_LOGGING } = require("../constants");
 const deviceWrite = require('../writers/deviceWrite');
 
-const laptopPlug = (client, host) => {
-
-    client.getDevice({ host:host })
+const laptopPlug = (client, host, interval, filePath, isVerbose, isConsoleLogging) => {
+    client.getDevice({ host })
         .then(device => {
-            
+
             device.on('emeter-realtime-update', (emeterRealtime) => {
-                deviceWrite({
-                    id: device.deviceId,
-                    time: Date.now(),
-                    date: new Date(),
-                    name: `${device.alias} - Laptop`,
-                    model: device.model,
-                    host,
-                    watts: emeterRealtime.power
-                }, IS_CONSOLE_LOGGING);
+                deviceWrite(
+                    {
+                        id: device.deviceId,
+                        time: Date.now(),
+                        date: new Date(),
+                        name: `${device.alias} - Laptop`,
+                        model: device.model,
+                        host,
+                        watts: emeterRealtime.power
+                    },
+                    isConsoleLogging,
+                    isVerbose,
+                    filePath
+                );
             });
-            
-            device.startPolling(POLL_INTERVAL);
+
+            device.startPolling(interval);
         })
         .catch(e => {
-            deviceWrite({
-                id: device?.id,
-                time: Date.now(),
-                date: new Date(),
-                name: `Error - ${device?.alias} - laptop`,
-                model: device?.model,
-                host,
-                watts: false,
-                description: 'issue with connecting to laptop'
-            }, IS_CONSOLE_LOGGING);
+            deviceWrite(
+                {
+                    id: 'no device id',
+                    time: Date.now(),
+                    date: new Date(),
+                    name: `Error - ${device?.alias} - laptop`,
+                    model: device?.model,
+                    host,
+                    watts: false,
+                    description: 'issue with connecting to laptop'
+                },
+                isConsoleLogging,
+                isVerbose,
+                filePath
+            );
         });
 }
 

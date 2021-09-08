@@ -1,5 +1,5 @@
 const util = require('util');
-const { POLL_INTERVAL, IS_CONSOLE_LOGGING } = require("../constants");
+const { TOTAL_PLUGS_ON_STRIP } = require('../constants');
 const { mailOptions, transporter } = require('../utils/email');
 const childWrite = require('../writers/childWrite');
 const deviceWrite = require('../writers/deviceWrite');
@@ -25,7 +25,7 @@ const getChildPower = (stateString) => {
     return everythingFromPowerToEnd.substr(0, endOfPowerSection);
 }
 
-const powerStrip = (client, host) => {
+const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLogging) => {
     client.getDevice({ host: host })
         .then(device => {
             let summedChildrenPower = 0;
@@ -53,10 +53,10 @@ const powerStrip = (client, host) => {
                         watts: power,
                     };
 
-                    childWrite(electricityData, IS_CONSOLE_LOGGING);
+                    childWrite(electricityData, isConsoleLogging, isVerbose, filePath);
 
                     childIndex += 1;
-                    if (childIndex === 6) {
+                    if (childIndex === TOTAL_PLUGS_ON_STRIP) {
                         deviceWrite({
                             id: device?.id,
                             time: Date.now(),
@@ -66,18 +66,21 @@ const powerStrip = (client, host) => {
                             host: host,
                             watts: summedChildrenPower,
                             description: 'Parent Strip'
-                        }, IS_CONSOLE_LOGGING);
+                        },
+                            isConsoleLogging,
+                            isVerbose);
+
                         summedChildrenPower = 0;
                         isEmailing && transporter.sendMail(mailOptions);
                         childIndex = 0;
                     }
                 });
 
-                childPlug.startPolling(POLL_INTERVAL);
+                childPlug.startPolling(interval);
             });
         })
         .catch(e => {
-            const electricityData = {
+            deviceWrite({
                 id: device?.id,
                 time: Date.now(),
                 date: new Date(),
@@ -86,9 +89,9 @@ const powerStrip = (client, host) => {
                 host: host,
                 watts: false,
                 description: 'issue with connecting to a child or power strip itself.'
-            };
-
-            deviceWrite(electricityData, false);
+            },
+                isConsoleLogging,
+                filePath);
         });
 }
 
