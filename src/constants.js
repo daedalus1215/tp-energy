@@ -1,13 +1,11 @@
 const REALTIME_UPDATE_EVENT = 'emeter-realtime-update';
 const TOTAL_PLUGS_ON_STRIP = 6;
-const FIVE_MINUTES = 300000;
-const THIRT_SECONDS = 30000;
-const POLL_INTERVAL = THIRT_SECONDS;
 const IS_CONSOLE_LOGGING = true;
+const VERBOSE = false;
 
 module.exports = {
     REALTIME_UPDATE_EVENT,
     TOTAL_PLUGS_ON_STRIP,
-    POLL_INTERVAL,
-    IS_CONSOLE_LOGGING
+    IS_CONSOLE_LOGGING,
+    VERBOSE
 };

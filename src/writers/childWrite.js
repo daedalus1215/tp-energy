@@ -12,7 +12,9 @@ const writeLog = require("./writeLog");
                     }
  * @param {boolean} consoleLogging 
  */
-module.exports = (electricityData, consoleLogging = true) => {
-    consoleLogging && console.log('child - ', electricityData);
-    writeLog(`${process.env.FILE_PATH}${electricityData.id} - ${electricityData.name}.json`, electricityData);
+module.exports = (electricityData, consoleLogging = true, isVerbose = false, filePath = process.env.FILE_PATH) => {
+    const { id, watts, time, name } = electricityData;
+    const data = isVerbose ? electricityData : { watts, time };
+    consoleLogging && console.log('childwrite - ', data);
+    writeLog(`${filePath}${id} - ${name}.json`, data);
 };
