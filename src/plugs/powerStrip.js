@@ -3,7 +3,6 @@ const { TOTAL_PLUGS_ON_STRIP } = require('../constants');
 const { mailOptions, transporter } = require('../utils/email');
 const childWrite = require('../writers/childWrite');
 const deviceWrite = require('../writers/deviceWrite');
-const isEmailing = false;
 
 /**
  * 
@@ -25,11 +24,18 @@ const getChildPower = (stateString) => {
     return everythingFromPowerToEnd.substr(0, endOfPowerSection);
 }
 
-const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLogging) => {
+const VIOLATION_LIMIT = 4;
+let powerThresholdMin = 1150;
+let powerThresholdMax = 1350;
+let violationThreshold = VIOLATION_LIMIT;
+
+const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLogging, isEmailing) => {
     client.getDevice({ host: host })
         .then(device => {
             let summedChildrenPower = 0;
             let childIndex = 0;
+            let failures = [];
+            const childCount = device?._sysInfo.child_num;
 
             device.children?.forEach(async (child) => {
                 const childPlug = await client.getDevice({ host: host, childId: child.id });
@@ -51,13 +57,15 @@ const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLoggin
                         DeviceHost: childPlug.host,
                         id: childPlug.childId,
                         watts: power,
+                        description: `index: ${childIndex} - ${summedChildrenPower}`
                     };
 
                     childWrite(electricityData, isConsoleLogging, isVerbose, filePath);
 
+                    // Aggregation Feature
                     childIndex += 1;
-                    if (childIndex === TOTAL_PLUGS_ON_STRIP) {
-                        deviceWrite({
+                    if (childIndex === childCount) {
+                        const data = {
                             id: device?.id,
                             time: Date.now(),
                             date: new Date(),
@@ -66,12 +74,24 @@ const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLoggin
                             host: host,
                             watts: summedChildrenPower,
                             description: 'Parent Strip'
-                        },
-                            isConsoleLogging,
-                            isVerbose);
+                        };
 
+                        deviceWrite(data, isConsoleLogging, isVerbose);
+
+                        // Keeping track of violations
+                        if (summedChildrenPower < powerThresholdMin || summedChildrenPower > powerThresholdMax && violationThreshold !== 0) {
+                            violationThreshold -= 1;
+                        } else if (violationThreshold < VIOLATION_LIMIT) {
+                            violationThreshold += 1;
+                        }
+                        if (violationThreshold === 0) {
+                            isEmailing && transporter.sendMail({ ...mailOptions, text: JSON.stringify(data) });
+                            console.log('ERROR!!!')
+                        }
+
+                        isVerbose && console.log('violationThreshold', violationThreshold)
+                        // Resetting the running tallies
                         summedChildrenPower = 0;
-                        isEmailing && transporter.sendMail(mailOptions);
                         childIndex = 0;
                     }
                 });
@@ -81,11 +101,11 @@ const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLoggin
         })
         .catch(e => {
             deviceWrite({
-                id: device?.id,
+                id: 'error in power strip',
                 time: Date.now(),
                 date: new Date(),
-                name: `${device?.alias} - power strip`,
-                model: device?.model,
+                name: `Error - power strip`,
+                model: 'model',
                 host: host,
                 watts: false,
                 description: 'issue with connecting to a child or power strip itself.'

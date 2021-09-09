@@ -3,7 +3,7 @@ const { Client } = require('tplink-smarthome-api');
 const deviceWrite = require('./src/writers/deviceWrite');
 const powerStrip = require('./src/plugs/powerStrip');
 const laptopPlug = require('./src/plugs/laptopPlug');
-const { VERBOSE, IS_CONSOLE_LOGGING, INTERVAL } = require('./src/constants');
+const { VERBOSE, IS_CONSOLE_LOGGING, INTERVAL, IS_EMAILING } = require('./src/constants');
 
 const client = new Client({
     defaultSendOptions: { timeout: 20000, transport: 'tcp' },
@@ -58,7 +58,7 @@ const run = async () => {
         });
 
     // Power Strip
-    powerStrip(client, POWER_STRIP_IP_ADDRESS, INTERVAL, FILE_PATH, VERBOSE, IS_CONSOLE_LOGGING)
+    powerStrip(client, POWER_STRIP_IP_ADDRESS, INTERVAL, FILE_PATH, VERBOSE, IS_CONSOLE_LOGGING, IS_EMAILING)
 }
 
 
