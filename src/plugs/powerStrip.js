@@ -24,6 +24,7 @@ const getChildPower = (stateString) => {
     return everythingFromPowerToEnd.substr(0, endOfPowerSection);
 }
 
+const VIOLATION_RESET_TO_THIRTY_MINUTES = 60;
 const VIOLATION_LIMIT = 4;
 let powerThresholdMin = 1150;
 let powerThresholdMax = 1350;
@@ -34,7 +35,6 @@ const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLoggin
         .then(device => {
             let summedChildrenPower = 0;
             let childIndex = 0;
-            let failures = [];
             const childCount = device?._sysInfo.child_num;
 
             device.children?.forEach(async (child) => {
@@ -79,14 +79,21 @@ const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLoggin
                         deviceWrite(data, isConsoleLogging, isVerbose);
 
                         // Keeping track of violations
-                        if (summedChildrenPower < powerThresholdMin || summedChildrenPower > powerThresholdMax && violationThreshold !== 0) {
+                        if (summedChildrenPower < powerThresholdMin || summedChildrenPower > powerThresholdMax) {
+                            // subtract from violationThreshold if power limits are not within the appropriate range
                             violationThreshold -= 1;
                         } else if (violationThreshold < VIOLATION_LIMIT) {
+                            // add to violationThreshold if it has been subtracted from and current power is not violating the limit
+                            // range anymore. This can happen because electricity fluctuates and sometimes we exceed or drop below the 
+                            // range we expect, that is ok if it happens once or twice, but if it happens consistently within a 2 min span
+                            // We can assume there is an issue. 
                             violationThreshold += 1;
                         }
-                        if (violationThreshold === 0) {
+                        // Do not want to get spammed with emails/texts, so can set it so it notifies every thirty minutes.
+                        if (violationThreshold === 0 || violationThreshold <= 0) {
                             isEmailing && transporter.sendMail({ ...mailOptions, text: JSON.stringify(data) });
                             console.log('ERROR!!!')
+                            violationThreshold = VIOLATION_RESET_TO_THIRTY_MINUTES;
                         }
 
                         isVerbose && console.log('violationThreshold', violationThreshold)
