@@ -5,9 +5,9 @@ const THIRTY_SECONDS = 30000;
 const REALTIME_UPDATE_EVENT = 'emeter-realtime-update';
 const TOTAL_PLUGS_ON_STRIP = 6;
 const IS_CONSOLE_LOGGING = true;
-const VERBOSE = true;
+const VERBOSE = false;
 const INTERVAL = THIRTY_SECONDS;
-const IS_EMAILING = false;
+const IS_EMAILING = true;
 
 module.exports = {
     REALTIME_UPDATE_EVENT,

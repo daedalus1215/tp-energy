@@ -82,13 +82,11 @@ const powerStrip = (client, host, interval, filePath, isVerbose, isConsoleLoggin
                         if (summedChildrenPower < powerThresholdMin || summedChildrenPower > powerThresholdMax) {
                             // subtract from violationThreshold if power limits are not within the appropriate range
                             violationThreshold -= 1;
-                        } else if (violationThreshold < VIOLATION_LIMIT) {
-                            // add to violationThreshold if it has been subtracted from and current power is not violating the limit
-                            // range anymore. This can happen because electricity fluctuates and sometimes we exceed or drop below the 
-                            // range we expect, that is ok if it happens once or twice, but if it happens consistently within a 2 min span
-                            // We can assume there is an issue. 
-                            violationThreshold += 1;
+                        } else {
+                            // If there was no violation, reset it back to the limit. If no violations.
+                            violationThreshold = VIOLATION_LIMIT;
                         }
+
                         // Do not want to get spammed with emails/texts, so can set it so it notifies every thirty minutes.
                         if (violationThreshold === 0 || violationThreshold <= 0) {
                             isEmailing && transporter.sendMail({ ...mailOptions, text: JSON.stringify(data) });
